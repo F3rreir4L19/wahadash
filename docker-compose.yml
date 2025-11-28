@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # Instância WAHA 1
+  waha-instance-1:
+    image: devlikeapro/waha
+    container_name: waha-instance-1
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./waha-data-1:/app/.waha
+    environment:
+      - WHATSAPP_API_PORT=3001
+      - WAHA_API_KEY=api_key_instance_1
+      - TZ=America/Sao_Paulo
+    restart: unless-stopped
+
+  # Instância WAHA 2
+  waha-instance-2:
+    image: devlikeapro/waha
+    container_name: waha-instance-2
+    ports:
+      - "3002:3001"
+    volumes:
+      - ./waha-data-2:/app/.waha
+    environment:
+      - WHATSAPP_API_PORT=3001
+      - WAHA_API_KEY=api_key_instance_2
+      - TZ=America/Sao_Paulo
+    restart: unless-stopped
+
+  # REMOVA a seção do django-app do docker-compose
+  # pois vamos rodar localmente durante o desenvolvimento

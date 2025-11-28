@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WhatsApp Multi-Agente</title>
+    <style>
+        /* Estilos similares ao WhatsApp Web */
+        .whatsapp-container {
+            display: flex;
+            height: 100vh;
+            font-family: sans-serif;
+        }
+        .sidebar {
+            width: 30%;
+            border-right: 1px solid #e0e0e0;
+        }
+        .chat-area {
+            width: 70%;
+            display: flex;
+            flex-direction: column;
+        }
+        .instance-selector {
+            padding: 10px;
+            background: #f0f0f0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .messages-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .message-input {
+            padding: 10px;
+            border-top: 1px solid #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="whatsapp-container">
+        <div class="sidebar">
+            <div class="instance-selector">
+                <select id="instanceSelector">
+                    {% for instance in instances %}
+                    <option value="{{ instance.id }}">{{ instance.name }} ({{ instance.whatsapp_number }})</option>
+                    {% endfor %}
+                </select>
+                <button onclick="switchInstance()">Alternar Instância</button>
+            </div>
+            <!-- Lista de chats -->
+            <div id="chatsList"></div>
+        </div>
+        
+        <div class="chat-area">
+            <div class="messages-container" id="messagesContainer">
+                <!-- Mensagens serão carregadas aqui -->
+            </div>
+            <div class="message-input">
+                <input type="text" id="messageInput" placeholder="Digite uma mensagem...">
+                <button onclick="sendMessage()">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentInstance = null;
+        
+        function switchInstance() {
+            const instanceId = document.getElementById('instanceSelector').value;
+            fetch(`/whatsapp/switch-instance/${instanceId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    currentInstance = instanceId;
+                    loadChats();
+                    loadMessages();
+                }
+            });
+        }
+        
+        function loadChats() {
+            if (!currentInstance) return;
+            
+            fetch(`/whatsapi/chats/${currentInstance}/`)
+            .then(response => response.json())
+            .then(chats => {
+                // Atualizar lista de chats
+                const chatsList = document.getElementById('chatsList');
+                chatsList.innerHTML = chats.map(chat => 
+                    `<div class="chat-item" onclick="selectChat('${chat.id}')">
+                        ${chat.name}
+                    </div>`
+                ).join('');
+            });
+        }
+        
+        function loadMessages(chatId = null) {
+            if (!currentInstance || !chatId) return;
+            
+            fetch(`/chats/history/${currentInstance}/${chatId}/`)
+            .then(response => response.json())
+            .then(messages => {
+                const container = document.getElementById('messagesContainer');
+                container.innerHTML = messages.map(msg => 
+                    `<div class="message ${msg.direction}">
+                        <strong>${msg.sender}:</strong> ${msg.content}
+                        <span class="time">${msg.timestamp}</span>
+                    </div>`
+                ).join('');
+            });
+        }
+        
+        function sendMessage() {
+            const message = document.getElementById('messageInput').value;
+            const chatId = getSelectedChatId(); // Implementar esta função
+            
+            if (!currentInstance || !message || !chatId) return;
+            
+            fetch(`/whatsapp/send/${currentInstance}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                body: `chat_id=${chatId}&message=${encodeURIComponent(message)}`
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (!result.error) {
+                    document.getElementById('messageInput').value = '';
+                    loadMessages(chatId);
+                }
+            });
+        }
+        
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            currentInstance = document.getElementById('instanceSelector').value;
+            loadChats();
+        });
+    </script>
+</body>
+</html>
