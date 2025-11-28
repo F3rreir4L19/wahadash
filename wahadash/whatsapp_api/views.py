@@ -97,27 +97,43 @@ class SendMessageView(View):
 @method_decorator(login_required, name='dispatch')
 class GetChatsView(View):
     def get(self, request, instance_id):
+        print(f"🔍 GET CHATS - Instância ID: {instance_id}")
+        
         # Verificar se usuário tem acesso à instância
         if not user_has_instance_access(request.user, instance_id):
+            print("❌ Acesso negado para o usuário")
             return JsonResponse({'status': 'error', 'message': 'Acesso negado'}, status=403)
             
         instance = get_object_or_404(WahaInstance, id=instance_id)
+        print(f"✅ Instância encontrada: {instance.name}")
         
-        result = waha_manager.get_chats(instance.name)
-        
-        if 'error' in result:
-            return JsonResponse(result, status=400)
-        
-        # Formatar os chats para a resposta
-        chats = []
-        for chat in result:
-            chats.append({
-                'id': chat.get('id'),
-                'name': chat.get('name'),
-                'unread_count': chat.get('unreadCount', 0)
-            })
-        
-        return JsonResponse(chats, safe=False)
+        # Tentar buscar chats do WAHA
+        try:
+            print(f"📡 Chamando WAHA Manager para: {instance.name}")
+            result = waha_manager.get_chats(instance.name)
+            print(f"📡 Resposta do WAHA: {result}")
+            
+            if 'error' in result:
+                print(f"❌ Erro do WAHA: {result['error']}")
+                return JsonResponse(result, status=400)
+            
+            # Formatar os chats para a resposta
+            chats = []
+            for chat in result:
+                chats.append({
+                    'id': chat.get('id', ''),
+                    'name': chat.get('name', 'Sem nome'),
+                    'unread_count': chat.get('unreadCount', 0)
+                })
+            
+            print(f"✅ Chats formatados: {len(chats)} encontrados")
+            return JsonResponse(chats, safe=False)
+            
+        except Exception as e:
+            print(f"💥 Erro na view GetChatsView: {e}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'error': f'Erro interno: {str(e)}'}, status=500)
 
 @method_decorator(login_required, name='dispatch')
 class ChatInterfaceView(View):

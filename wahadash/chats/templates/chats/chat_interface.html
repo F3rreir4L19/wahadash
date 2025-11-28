@@ -84,7 +84,7 @@
         function loadChats() {
             if (!currentInstance) return;
             
-            fetch(`/whatsapi/chats/${currentInstance}/`)
+            fetch(`/whatsapp/chats/${currentInstance}/`)
             .then(response => response.json())
             .then(chats => {
                 // Atualizar lista de chats
